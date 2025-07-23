@@ -13,14 +13,9 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        body.dark-mode {
+        body {
             background-color: #1a1a1a;
             color: #ffffff;
-        }
-
-        body.light-mode {
-            background-color: #ffffff;
-            color: #000000;
         }
 
         .container {
@@ -85,8 +80,8 @@
             box-shadow: 0 0 16px 4px #ff3b3b;
         }
 
-        body.dark-mode th,
-        body.dark-mode td {
+        th,
+        td {
             border-bottom: 1px solid #444;
         }
 
@@ -95,7 +90,7 @@
             background-color: #f4f4f4;
         }
 
-        body.dark-mode th {
+        th {
             background-color: #2a2a2a;
         }
 
@@ -103,8 +98,40 @@
             background-color: #e0e0e0;
         }
 
-        body.dark-mode th:hover {
+        th:hover {
             background-color: #3a3a3a;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .update-all-btn {
+            background-color: #28a745;
+            color: #fff;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            font-size: 18px;
+            box-shadow: 0 2px 8px rgba(40,167,69,0.15);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .update-all-btn:hover {
+            background-color: #218838;
+            box-shadow: 0 4px 16px rgba(40,167,69,0.25);
+        }
+
+        .main-actions {
+            margin-bottom: 6px;
+        }
+
+        .secondary-actions {
+            justify-content: flex-end;
         }
 
         .loading::after {
@@ -125,7 +152,7 @@
             z-index: 1000;
         }
 
-        body.dark-mode #importBox {
+        #importBox {
             background-color: #2a2a2a;
             border: 1px solid #444;
         }
@@ -149,15 +176,16 @@
     </style>
 </head>
 
-<body class="dark-mode">
+<body>
     <div class="container">
         <div class="controls">
             <input type="text" id="domainInput" placeholder="Enter domain (e.g., example.com)">
             <button onclick="addDomain()">Add Domain</button>
-            <button onclick="updateAllDomains()">Update All</button>
             <button onclick="toggleImportBox()">Import Multiple</button>
-            <button onclick="toggleTheme()">Toggle Light/Dark Mode</button>
             <button class="delete-all" onclick="deleteAllDomains()">Delete All</button>
+        </div>
+        <div class="controls" style="margin-top: 0;">
+            <button class="update-all-btn" onclick="updateAllDomains()">Update All</button>
         </div>
         <table id="domainTable">
             <thead>
@@ -187,9 +215,7 @@
         let updateQueue = [];
         const RATE_LIMIT_DELAY = 1000; // 1 second delay between requests
 
-        // Load saved theme
-        const savedTheme = localStorage.getItem('theme') || 'dark-mode';
-        document.body.className = savedTheme;
+        // ...existing code...
 
         // Add Enter key listener for domain input
         document.getElementById('domainInput').addEventListener('keypress', function (event) {
@@ -394,11 +420,7 @@
             renderTable();
         }
 
-        function toggleTheme() {
-            const isDark = document.body.classList.contains('dark-mode');
-            document.body.className = isDark ? 'light-mode' : 'dark-mode';
-            localStorage.setItem('theme', document.body.className);
-        }
+        // ...existing code...
 
         function toggleImportBox() {
             const importBox = document.getElementById('importBox');
