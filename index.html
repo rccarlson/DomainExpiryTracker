@@ -373,12 +373,17 @@
             renderTable();
             domainInput.value = '';
             
-            // Add to queue for processing
-            addQueue.push(newDomain);
-            
-            // Start processing if not already running
-            if (!isProcessingAdds) {
-                processAddQueue();
+            // If updateAll is running, add to the main update queue instead
+            if (isUpdating) {
+                updateQueue.push(domain);
+            } else {
+                // Add to queue for processing
+                addQueue.push(newDomain);
+                
+                // Start processing if not already running
+                if (!isProcessingAdds) {
+                    processAddQueue();
+                }
             }
         }
 
@@ -469,9 +474,17 @@
             if (addedCount > 0) {
                 console.log(message); // Could be enhanced with a success toast
                 
-                // Start processing if not already running (same as addDomain)
-                if (!isProcessingAdds) {
-                    processAddQueue();
+                // If updateAll is running, add to the main update queue instead
+                if (isUpdating) {
+                    // Add all new domains to the main update queue
+                    domains.slice(-addedCount).forEach(domain => {
+                        updateQueue.push(domain.domain);
+                    });
+                } else {
+                    // Start processing if not already running (same as addDomain)
+                    if (!isProcessingAdds) {
+                        processAddQueue();
+                    }
                 }
             } else if (invalidCount > 0 || duplicateCount > 0) {
                 showError(message);
@@ -554,6 +567,12 @@
             const queueIndex = addQueue.findIndex(d => d.domain === domain);
             if (queueIndex !== -1) {
                 addQueue.splice(queueIndex, 1);
+            }
+            
+            // Remove from updateQueue if it's waiting to be processed
+            const updateQueueIndex = updateQueue.findIndex(d => d === domain);
+            if (updateQueueIndex !== -1) {
+                updateQueue.splice(updateQueueIndex, 1);
             }
             
             saveDomains();
