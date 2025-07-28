@@ -179,7 +179,7 @@
                 <tr>
                     <th onclick="sortTable(0)" role="button" tabindex="0" aria-sort="none" title="Click to sort by domain name">Domain</th>
                     <th onclick="sortTable(1)" role="button" tabindex="0" aria-sort="none" title="Click to sort by registration date">Registration Date</th>
-                    <th onclick="sortTable(2)" role="button" tabindex="0" aria-sort="none" title="Click to sort by expiration date">Expiration Date</th>
+                    <th onclick="sortTable(2)" role="button" tabindex="0" aria-sort="ascending" title="Click to sort by expiration date">Expiration Date</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -196,7 +196,7 @@
     <script>
         let domains = JSON.parse(localStorage.getItem('domains')) || [];
         let tldServices = null;
-        let sortColumn = parseInt(localStorage.getItem('sortColumn')) || 0;
+        let sortColumn = parseInt(localStorage.getItem('sortColumn')) || 2;
         let sortDirection = parseInt(localStorage.getItem('sortDirection')) || 1;
         let isUpdating = false;
         let updateQueue = [];
