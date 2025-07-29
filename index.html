@@ -216,8 +216,10 @@
         // Global state
         let domains = JSON.parse(localStorage.getItem('domains')) || [];
         let tldServices = null;
-        let sortColumn = parseInt(localStorage.getItem('sortColumn')) || 2;
-        let sortDirection = parseInt(localStorage.getItem('sortDirection')) || 1;
+        let sortColumn = localStorage.getItem('sortColumn');
+        sortColumn = sortColumn !== null && !isNaN(parseInt(sortColumn)) ? parseInt(sortColumn) : 2;
+        let sortDirection = localStorage.getItem('sortDirection');
+        sortDirection = sortDirection !== null && !isNaN(parseInt(sortDirection)) ? parseInt(sortDirection) : 1;
         let isUpdating = false;
         let updateQueue = [];
         let addQueue = [];
