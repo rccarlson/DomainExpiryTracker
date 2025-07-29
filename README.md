@@ -1,8 +1,6 @@
-# Domain Expiration Checker
+# Domain Expiration Tracker
 
-## Overview
-
-This is a web-based application that allows users to check the registration and expiration dates of internet domains using the ICANN RDAP API. Users can add domains individually or in bulk, view them in a sortable table, and update their information with rate-limited API queries. The application persists data using the browser's local storage.
+A web-based tool for tracking domain registration and expiration dates using RDAP (Registration Data Access Protocol) services using the ICANN RDAP API. Users can add domains individually or in bulk, view them in a sortable table, and update their information with rate-limited API queries. The application persists data using the browser's local storage.
 
 [Link to live page](https://rccarlson.github.io/DomainExpiryTracker/)
 

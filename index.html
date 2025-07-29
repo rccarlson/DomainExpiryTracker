@@ -28,6 +28,7 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         input,
@@ -42,10 +43,16 @@
             color: white;
             border: none;
             border-radius: 4px;
+            transition: background-color 0.2s;
         }
 
         button:hover {
             background-color: #0056b3;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         button.delete-all {
@@ -83,18 +90,11 @@
         th {
             cursor: pointer;
             background-color: #2a2a2a;
+            user-select: none;
         }
 
         th:hover {
             background-color: #3a3a3a;
-        }
-
-        .controls {
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
         }
 
         .update-all-btn {
@@ -108,46 +108,15 @@
             box-shadow: 0 2px 8px rgba(40,167,69,0.15);
             transition: background 0.2s, box-shadow 0.2s;
         }
-        .update-all-btn:hover {
+        
+        .update-all-btn:hover:not(:disabled) {
             background-color: #218838;
             box-shadow: 0 4px 16px rgba(40,167,69,0.25);
-        }
-
-        .main-actions {
-            margin-bottom: 6px;
-        }
-
-        .secondary-actions {
-            justify-content: flex-end;
         }
 
         .loading::after {
             content: '⏳';
             margin-left: 10px;
-        }
-
-        #importBox {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #fff;
-            padding: 20px;
-            border: 1px solid #ccc;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-        }
-
-        #importBox {
-            background-color: #2a2a2a;
-            border: 1px solid #444;
-        }
-
-        #importBox textarea {
-            width: 300px;
-            height: 150px;
-            margin-bottom: 10px;
         }
 
         .overlay {
@@ -160,19 +129,56 @@
             background: rgba(0, 0, 0, 0.5);
             z-index: 999;
         }
+
+        #importBox {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            min-width: 350px;
+        }
+
+        #importBox textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 10px;
+            background-color: #1a1a1a;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: monospace;
+            resize: vertical;
+        }
+
+        #importBox textarea::placeholder {
+            color: #888;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
         <div class="controls">
-            <input type="text" id="domainInput" placeholder="Enter domain (e.g., example.com)">
-            <button onclick="addDomain()">Add Domain</button>
-            <button onclick="toggleImportBox()">Import Multiple</button>
-            <button class="delete-all" onclick="deleteAllDomains()">Delete All</button>
+            <input type="text" 
+                   id="domainInput" 
+                   placeholder="Enter domain (e.g., example.com)"
+                   aria-label="Domain name input"
+                   autocomplete="off"
+                   spellcheck="false">
+            <button onclick="addDomain()" aria-label="Add domain to list">Add Domain</button>
+            <button onclick="toggleImportBox()" aria-label="Import multiple domains">Import Multiple</button>
+            <button class="delete-all" onclick="deleteAllDomains()" aria-label="Delete all domains">Delete All</button>
         </div>
         <div class="controls" style="margin-top: 0;">
-            <button class="update-all-btn" onclick="updateAllDomains()">Update All</button>
+            <button class="update-all-btn" onclick="updateAllDomains()" aria-label="Update all domain information">Update All</button>
         </div>
         <table id="domainTable">
             <thead>
@@ -185,15 +191,29 @@
             </thead>
             <tbody id="domainList"></tbody>
         </table>
-        <div class="overlay" id="overlay"></div>
-        <div id="importBox">
-            <textarea id="importText" placeholder="Enter domains, one per line" maxlength="10000"></textarea>
+        <div class="overlay" id="overlay" aria-hidden="true"></div>
+        <div id="importBox" role="dialog" aria-labelledby="importTitle" aria-hidden="true">
+            <h3 id="importTitle" style="margin-top: 0; color: #fff;">Import Multiple Domains</h3>
+            <textarea id="importText" 
+                      placeholder="Enter domains, one per line" 
+                      maxlength="10000"
+                      aria-label="Domain list input"
+                      spellcheck="false"></textarea>
             <br>
-            <button onclick="importDomains()">Import</button>
-            <button onclick="toggleImportBox()">Cancel</button>
+            <button onclick="importDomains()" aria-label="Import domains">Import</button>
+            <button onclick="toggleImportBox()" aria-label="Cancel import">Cancel</button>
         </div>
     </div>
     <script>
+        // Constants
+        const RATE_LIMIT_DELAY = 1000; // 1 second delay between requests
+        const WARNING_DAYS_THRESHOLD = 14; // Show warning icon for domains expiring within 14 days
+        const TIME_DISPLAY_THRESHOLD = 7; // Show time for domains expiring within 7 days
+        const ERROR_TOAST_DURATION = 4000; // Error toast display duration in ms
+        const DOMAIN_MAX_LENGTH = 253;
+        const DOMAIN_LABEL_MAX_LENGTH = 61;
+
+        // Global state
         let domains = JSON.parse(localStorage.getItem('domains')) || [];
         let tldServices = null;
         let sortColumn = parseInt(localStorage.getItem('sortColumn')) || 2;
@@ -202,75 +222,146 @@
         let updateQueue = [];
         let addQueue = [];
         let isProcessingAdds = false;
-        const RATE_LIMIT_DELAY = 1000; // 1 second delay between requests
 
         // Domain validation function
         function isValidDomain(domain) {
-            // Basic domain validation regex
-            const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-            return domainRegex.test(domain) && 
-                   domain.length <= 253 && 
-                   !domain.includes('..') && 
-                   domain.includes('.') &&
-                   !domain.startsWith('.') &&
-                   !domain.endsWith('.');
-        }
-
-        // Error notification function
-        function showError(message) {
-            // Remove existing error if any
-            const existingError = document.querySelector('.error-toast');
-            if (existingError) {
-                existingError.remove();
+            if (!domain || typeof domain !== 'string') return false;
+            
+            // Check length constraints
+            if (domain.length > DOMAIN_MAX_LENGTH || domain.length < 3) return false;
+            
+            // Check for basic format issues
+            if (domain.includes('..') || 
+                !domain.includes('.') ||
+                domain.startsWith('.') ||
+                domain.endsWith('.') ||
+                domain.startsWith('-') ||
+                domain.endsWith('-')) {
+                return false;
             }
             
+            // Validate each label (part between dots)
+            const labels = domain.split('.');
+            if (labels.length < 2) return false;
+            
+            const labelRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+            return labels.every(label => {
+                return label.length > 0 && 
+                       label.length <= DOMAIN_LABEL_MAX_LENGTH && 
+                       labelRegex.test(label);
+            });
+        }
+
+        // Notification functions
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        function showSuccess(message) {
+            showNotification(message, 'success');
+        }
+
+        function showNotification(message, type = 'error') {
+            // Remove existing notifications
+            const existing = document.querySelectorAll('.notification-toast');
+            existing.forEach(toast => toast.remove());
+            
+            const colors = {
+                error: { bg: '#dc3545', text: '#fff' },
+                success: { bg: '#28a745', text: '#fff' },
+                warning: { bg: '#ffc107', text: '#000' }
+            };
+            
             const toast = document.createElement('div');
-            toast.className = 'error-toast';
+            toast.className = 'notification-toast';
             toast.textContent = message;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'polite');
+            
+            const color = colors[type] || colors.error;
             toast.style.cssText = `
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                background-color: #dc3545;
-                color: white;
+                background-color: ${color.bg};
+                color: ${color.text};
                 padding: 12px 20px;
                 border-radius: 4px;
                 z-index: 1001;
                 font-weight: bold;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                max-width: 300px;
+                word-wrap: break-word;
+                animation: slideIn 0.3s ease-out;
             `;
+            
+            // Add CSS animation if not already added
+            if (!document.querySelector('#notification-styles')) {
+                const style = document.createElement('style');
+                style.id = 'notification-styles';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
             document.body.appendChild(toast);
             setTimeout(() => {
                 if (toast.parentNode) {
-                    toast.remove();
+                    toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                    setTimeout(() => toast.remove(), 300);
                 }
-            }, 4000);
+            }, ERROR_TOAST_DURATION);
         }
 
-        // ...existing code...
-
-        // Add Enter key listener for domain input
-        document.getElementById('domainInput').addEventListener('keypress', function (event) {
-            if (event.key === 'Enter') {
-                addDomain();
-            }
-        });
-
-        // Add keyboard accessibility for table headers
-        document.addEventListener('keydown', function(event) {
-            if (event.target.tagName === 'TH' && event.target.hasAttribute('onclick')) {
-                if (event.key === 'Enter' || event.key === ' ') {
+        // Event listeners setup
+        function setupEventListeners() {
+            // Enter key listener for domain input
+            const domainInput = document.getElementById('domainInput');
+            domainInput.addEventListener('keypress', function (event) {
+                if (event.key === 'Enter') {
                     event.preventDefault();
-                    event.target.click();
+                    addDomain();
                 }
-            }
-        });
+            });
 
-        // Trigger updateAllDomains on page load
-        window.onload = function () {
+            // Keyboard accessibility for table headers
+            document.addEventListener('keydown', function(event) {
+                if (event.target.tagName === 'TH' && event.target.hasAttribute('onclick')) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        event.target.click();
+                    }
+                }
+            });
+
+            // Close import box when clicking overlay
+            document.getElementById('overlay').addEventListener('click', function() {
+                if (document.getElementById('importBox').style.display === 'block') {
+                    toggleImportBox();
+                }
+            });
+
+            // Escape key to close import box
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && document.getElementById('importBox').style.display === 'block') {
+                    toggleImportBox();
+                }
+            });
+        }
+
+        // Initialize application
+        function initializeApp() {
+            setupEventListeners();
             renderTable();
             updateAllDomains();
-        };
+        }
+
+        // Page load handler
+        document.addEventListener('DOMContentLoaded', initializeApp);
 
         async function fetchTldServices() {
             if (!tldServices) {
@@ -433,8 +524,11 @@
         }
 
         async function importDomains() {
-            const importText = document.getElementById('importText').value;
-            const inputDomains = importText.split('\n').map(d => d.trim().toLowerCase()).filter(d => d);
+            const importText = document.getElementById('importText').value.trim();
+            const inputDomains = importText
+                .split('\n')
+                .map(d => d.trim().toLowerCase())
+                .filter(d => d);
             
             if (inputDomains.length === 0) {
                 showError('Please enter at least one domain');
@@ -444,22 +538,24 @@
             let addedCount = 0;
             let invalidCount = 0;
             let duplicateCount = 0;
+            const invalidDomains = [];
+            const duplicateDomains = [];
             
             inputDomains.forEach(domain => {
                 if (!isValidDomain(domain)) {
                     invalidCount++;
+                    invalidDomains.push(domain);
                     return;
                 }
                 
                 if (domains.some(d => d.domain === domain)) {
                     duplicateCount++;
+                    duplicateDomains.push(domain);
                     return;
                 }
                 
                 const newDomain = { domain, registration: 'N/A', expiration: 'N/A', isLoading: true };
                 domains.push(newDomain);
-                
-                // Add to queue for processing (same as addDomain)
                 addQueue.push(newDomain);
                 addedCount++;
             });
@@ -468,38 +564,29 @@
             renderTable();
             toggleImportBox();
             
-            // Show summary message
-            let message = `Added ${addedCount} domain(s)`;
-            if (invalidCount > 0) message += `, ${invalidCount} invalid`;
-            if (duplicateCount > 0) message += `, ${duplicateCount} duplicate(s)`;
-            
+            // Show detailed feedback
             if (addedCount > 0) {
-                console.log(message); // Could be enhanced with a success toast
+                showSuccess(`Successfully added ${addedCount} domain${addedCount > 1 ? 's' : ''}`);
                 
-                // If updateAll is running, add to the main update queue instead
+                // Start processing if not already running
                 if (isUpdating) {
-                    // Add all new domains to the main update queue
                     domains.slice(-addedCount).forEach(domain => {
                         updateQueue.push(domain.domain);
                     });
-                } else {
-                    // Start processing if not already running (same as addDomain)
-                    if (!isProcessingAdds) {
-                        processAddQueue();
-                    }
+                } else if (!isProcessingAdds) {
+                    processAddQueue();
                 }
-            } else if (invalidCount > 0 || duplicateCount > 0) {
-                showError(message);
             }
-        }
-
-        function saveDomains() {
-            localStorage.setItem('domains', JSON.stringify(domains));
-        }
-
-        function saveSortOrder() {
-            localStorage.setItem('sortColumn', sortColumn);
-            localStorage.setItem('sortDirection', sortDirection);
+            
+            if (invalidCount > 0) {
+                console.warn('Invalid domains:', invalidDomains);
+                showError(`${invalidCount} invalid domain${invalidCount > 1 ? 's' : ''} skipped`);
+            }
+            
+            if (duplicateCount > 0) {
+                console.warn('Duplicate domains:', duplicateDomains);
+                showError(`${duplicateCount} duplicate domain${duplicateCount > 1 ? 's' : ''} skipped`);
+            }
         }
 
         async function updateAllDomains() {
@@ -632,11 +719,11 @@
                             // Calculate days left
                             const msPerDay = 1000 * 60 * 60 * 24;
                             daysLeft = Math.ceil((expDate - now) / msPerDay);
-                            if (daysLeft < 14) {
-                                warningHTML = ` <span title="This domain expires in ${daysLeft} days" style="color: orange; font-size: 1.2em; vertical-align: middle; cursor: pointer;">&#9888;</span>`;
+                            if (daysLeft < WARNING_DAYS_THRESHOLD) {
+                                warningHTML = ` <span title="This domain expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}" style="color: orange; font-size: 1.2em; vertical-align: middle; cursor: pointer;" aria-label="Warning: expires soon">&#9888;</span>`;
                             }
                             // If less than 7 days, include time in local timezone
-                            if (daysLeft <= 7) {
+                            if (daysLeft <= TIME_DISPLAY_THRESHOLD) {
                                 const timeString = expDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
                                 expirationDisplay = `${domain.expiration} ${timeString}`;
                             }
@@ -689,17 +776,45 @@
             renderTable();
         }
 
-        // ...existing code...
-
         function toggleImportBox() {
             const importBox = document.getElementById('importBox');
             const overlay = document.getElementById('overlay');
+            const importText = document.getElementById('importText');
             const isVisible = importBox.style.display === 'block';
-            importBox.style.display = isVisible ? 'none' : 'block';
-            overlay.style.display = isVisible ? 'none' : 'block';
-            if (!isVisible) {
-                document.getElementById('importText').value = '';
+            
+            if (isVisible) {
+                // Closing
+                importBox.style.display = 'none';
+                overlay.style.display = 'none';
+                importBox.setAttribute('aria-hidden', 'true');
+                overlay.setAttribute('aria-hidden', 'true');
+                importText.value = '';
+                
+                // Return focus to the button that opened it
+                const importButton = document.querySelector('button[onclick="toggleImportBox()"]');
+                if (importButton) {
+                    importButton.focus();
+                }
+            } else {
+                // Opening
+                importBox.style.display = 'block';
+                overlay.style.display = 'block';
+                importBox.setAttribute('aria-hidden', 'false');
+                overlay.setAttribute('aria-hidden', 'false');
+                
+                // Focus the textarea for immediate typing
+                setTimeout(() => importText.focus(), 100);
             }
+        }
+
+        // Utility functions
+        function saveDomains() {
+            localStorage.setItem('domains', JSON.stringify(domains));
+        }
+
+        function saveSortOrder() {
+            localStorage.setItem('sortColumn', sortColumn);
+            localStorage.setItem('sortDirection', sortDirection);
         }
     </script>
 </body>
