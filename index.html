@@ -329,7 +329,8 @@
                 
                 return {
                     registration: registration ? new Date(registration).toLocaleDateString() : 'N/A',
-                    expiration: expiration ? new Date(expiration).toLocaleDateString() : 'N/A'
+                    expiration: expiration ? new Date(expiration).toLocaleDateString() : 'N/A',
+                    expirationRaw: expiration || null // Store raw ISO date for time calculations
                 };
             } catch (error) {
                 console.error(`Error fetching info for ${domain}:`, error);
@@ -416,6 +417,7 @@
                 if (!info.error) {
                     stillExistsAfterFetch.registration = info.registration;
                     stillExistsAfterFetch.expiration = info.expiration;
+                    stillExistsAfterFetch.expirationRaw = info.expirationRaw;
                 }
                 stillExistsAfterFetch.isLoading = false;
                 saveDomains();
@@ -550,6 +552,7 @@
                     if (!info.error) {
                         domainObj.registration = info.registration;
                         domainObj.expiration = info.expiration;
+                        domainObj.expirationRaw = info.expirationRaw;
                     }
                     domainObj.isLoading = false;
                     saveDomains();
@@ -618,8 +621,10 @@
                 let expired = false;
                 let warningHTML = '';
                 let daysLeft = null;
+                let expirationDisplay = domain.expiration;
                 if (!expOutOfDate) {
-                    const expDate = new Date(domain.expiration);
+                    // Use raw date if available, otherwise try to parse the formatted date
+                    const expDate = domain.expirationRaw ? new Date(domain.expirationRaw) : new Date(domain.expiration);
                     if (!isNaN(expDate.getTime())) {
                         if (expDate < now) {
                             expired = true;
@@ -629,6 +634,11 @@
                             daysLeft = Math.ceil((expDate - now) / msPerDay);
                             if (daysLeft < 14) {
                                 warningHTML = ` <span title="This domain expires in ${daysLeft} days" style="color: orange; font-size: 1.2em; vertical-align: middle; cursor: pointer;">&#9888;</span>`;
+                            }
+                            // If less than 7 days, include time in local timezone
+                            if (daysLeft <= 7) {
+                                const timeString = expDate.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                                expirationDisplay = `${domain.expiration} ${timeString}`;
                             }
                         }
                     }
@@ -646,9 +656,9 @@
                 tr.cells[1].textContent = domain.registration;
                 
                 // Handle expiration cell with warning icon
-                tr.cells[2].textContent = domain.expiration;
+                tr.cells[2].textContent = expirationDisplay;
                 if (warningHTML) {
-                    tr.cells[2].innerHTML = domain.expiration + warningHTML;
+                    tr.cells[2].innerHTML = expirationDisplay + warningHTML;
                 }
                 if (expired) {
                     tr.classList.add('expired');
