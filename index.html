@@ -711,13 +711,21 @@
             const now = new Date();
             const sortedDomains = [...domains].sort((a, b) => {
                 let valueA, valueB;
-                if (sortColumn === 1 || sortColumn === 2) { // registration or expiration
-                    const dateA = Date.parse(a[sortColumn === 1 ? 'registration' : 'expiration']);
-                    const dateB = Date.parse(b[sortColumn === 1 ? 'registration' : 'expiration']);
+                if (sortColumn === 1) { // registration
+                    const dateA = Date.parse(a.registration);
+                    const dateB = Date.parse(b.registration);
                     if (isNaN(dateA) && isNaN(dateB)) return 0;
                     if (isNaN(dateA)) return 1 * sortDirection;
                     if (isNaN(dateB)) return -1 * sortDirection;
                     return (dateA - dateB) * sortDirection;
+                } else if (sortColumn === 2) { // expiration
+                    // Use expirationRaw if available, otherwise fallback to expiration
+                    const expA = a.expirationRaw ? Date.parse(a.expirationRaw) : Date.parse(a.expiration);
+                    const expB = b.expirationRaw ? Date.parse(b.expirationRaw) : Date.parse(b.expiration);
+                    if (isNaN(expA) && isNaN(expB)) return 0;
+                    if (isNaN(expA)) return 1 * sortDirection;
+                    if (isNaN(expB)) return -1 * sortDirection;
+                    return (expA - expB) * sortDirection;
                 } else {
                     valueA = a.domain || '';
                     valueB = b.domain || '';
