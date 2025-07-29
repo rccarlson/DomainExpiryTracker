@@ -76,6 +76,26 @@
             border-bottom: 1px solid #444;
         }
 
+        /* Dark mode for notes input */
+        .notes-input {
+            background-color: #1a1a1a;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        .notes-input:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+        .notes-input::placeholder {
+            color: #888;
+        }
+
         .out-of-date {
             color: #888;
         }
@@ -189,6 +209,7 @@
                     <th onclick="sortTable(0)" role="button" tabindex="0" aria-sort="none" title="Click to sort by domain name">Domain</th>
                     <th onclick="sortTable(1)" role="button" tabindex="0" aria-sort="none" title="Click to sort by registration date">Registration Date</th>
                     <th onclick="sortTable(2)" role="button" tabindex="0" aria-sort="ascending" title="Click to sort by expiration date">Expiration Date</th>
+                    <th>Notes</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -464,7 +485,7 @@
             }
             
             // Add domain with loading state
-            const newDomain = { domain, registration: 'N/A', expiration: 'N/A', isLoading: true };
+            const newDomain = { domain, registration: 'N/A', expiration: 'N/A', isLoading: true, notes: '' };
             domains.push(newDomain);
             saveDomains();
             renderTable();
@@ -552,14 +573,14 @@
                     invalidDomains.push(domain);
                     return;
                 }
-                
+
                 if (domains.some(d => d.domain === domain)) {
                     duplicateCount++;
                     duplicateDomains.push(domain);
                     return;
                 }
-                
-                const newDomain = { domain, registration: 'N/A', expiration: 'N/A', isLoading: true };
+
+                const newDomain = { domain, registration: 'N/A', expiration: 'N/A', isLoading: true, notes: '' };
                 domains.push(newDomain);
                 addQueue.push(newDomain);
                 addedCount++;
@@ -740,13 +761,12 @@
                 <td class="${domain.isLoading ? 'loading' : ''}"></td>
                 <td class="${regOutOfDate ? 'out-of-date' : ''}"></td>
                 <td class="${expOutOfDate ? 'out-of-date' : ''}"></td>
+                <td><input type="text" class="notes-input" value="${domain.notes ? domain.notes.replace(/"/g, '&quot;') : ''}" placeholder="Add notes..." style="width: 100%;" onchange="updateDomainNote('${domain.domain.replace(/'/g, "\\'")}', this.value)"></td>
                 <td><button onclick="removeDomain('${domain.domain.replace(/'/g, "\\'")}')">Remove</button></td>
             `;
-                
                 // Safely set text content
                 tr.cells[0].textContent = domain.domain;
                 tr.cells[1].textContent = domain.registration;
-                
                 // Handle expiration cell with warning icon
                 tr.cells[2].textContent = expirationDisplay;
                 if (warningHTML) {
@@ -820,6 +840,15 @@
         function saveSortOrder() {
             localStorage.setItem('sortColumn', sortColumn);
             localStorage.setItem('sortDirection', sortDirection);
+        }
+
+        // Update notes for a domain
+        function updateDomainNote(domainName, noteValue) {
+            const domainObj = domains.find(d => d.domain === domainName);
+            if (domainObj) {
+                domainObj.notes = noteValue;
+                saveDomains();
+            }
         }
     </script>
 </body>
