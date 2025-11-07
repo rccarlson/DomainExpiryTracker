@@ -4,6 +4,10 @@ A web-based tool for tracking domain registration and expiration dates using RDA
 
 [Link to live page](https://rccarlson.github.io/DomainExpiryTracker/)
 
+## AI Disclosure
+
+This application was built with the assistance of LLMs.
+
 ## API Details
 
 The application uses the ICANN RDAP API in two steps:
